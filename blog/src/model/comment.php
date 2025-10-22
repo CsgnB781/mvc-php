@@ -1,4 +1,5 @@
 <?php
+
 class Comment
 {
     public $author;
@@ -6,7 +7,7 @@ class Comment
     public $comment;
 }
 
-function getComments($post)
+function getComments(string $post): array
 {
     $database = commentDbConnect();
     $statement = $database->prepare(

@@ -1,67 +1,59 @@
 <?php
+
 class Post
 {
-    public $identifier;
     public $title;
     public $frenchCreationDate;
     public $content;
+    public $identifier;
 }
 
 class PostRepository
- {
- public $database = null;
- }
-
-function getPosts(PostRepository $repository): array
 {
-    dbConnect($repository);
-    $rows = $repository->database->query(
-        "SELECT id, title, content,
-               DATE_FORMAT(creation_date, '%d/%m/%Y à %Hh%imin%ss') AS french_creation_date
-         FROM posts
-         ORDER BY creation_date DESC"
-    );
+    public $database = null;
 
-    $posts = [];
-    while ($row = $rows->fetch()) {
-        $p = new Post();
-        $p->identifier = $row['id'];
-        $p->title = $row['title'];
-        $p->frenchCreationDate = $row['french_creation_date'];
-        $p->content = $row['content'];
-        $posts[] = $p;
+    public function getPost(string $identifier): Post
+    {
+        $this->dbConnect();
+        $statement = $this->database->prepare(
+            "SELECT id, title, content, DATE_FORMAT(creation_date, '%d/%m/%Y à %Hh%imin%ss') AS french_creation_date FROM posts WHERE id = ?"
+        );
+        $statement->execute([$identifier]);
+
+        $row = $statement->fetch();
+        $post = new Post();
+        $post->title = $row['title'];
+        $post->frenchCreationDate = $row['french_creation_date'];
+        $post->content = $row['content'];
+        $post->identifier = $row['id'];
+
+        return $post;
     }
-    return $posts;
-}
 
+    public function getPosts(): array
+    {
+        $this->dbConnect();
+        $statement = $this->database->query(
+            "SELECT id, title, content, DATE_FORMAT(creation_date, '%d/%m/%Y à %Hh%imin%ss') AS french_creation_date FROM posts ORDER BY creation_date DESC LIMIT 0, 5"
+        );
+        $posts = [];
+        while (($row = $statement->fetch())) {
+            $post = new Post();
+            $post->title = $row['title'];
+            $post->frenchCreationDate = $row['french_creation_date'];
+            $post->content = $row['content'];
+            $post->identifier = $row['id'];
 
-
-function getPost(PostRepository $repository, string $identifier): Post
-{
-    dbConnect($repository);
-    $statement = $repository->database->prepare(
-        "SELECT id, title, content,
-               DATE_FORMAT(creation_date, '%d/%m/%Y à %Hh%imin%ss') AS french_creation_date
-         FROM posts
-         WHERE id = ?"
-    );
-    $statement->execute([$identifier]);
-    $row = $statement->fetch();
-
-    $post = new Post();
-    $post->identifier = $row['id'];
-    $post->title = $row['title'];
-    $post->frenchCreationDate = $row['french_creation_date'];
-    $post->content = $row['content'];
-    return $post;
-}
-
-
-// Fonction de connexion à la base de données
-function dbConnect(PostRepository $repository)
- {
-    if ($repository->database === null) {
-        $repository->database = new PDO('mysql:host=localhost;
-        dbname=blog;charset=utf8', 'root', 'root');
+            $posts[] = $post;
         }
- }
+
+        return $posts;
+    }
+
+    public function dbConnect()
+    {
+        if ($this->database === null) {
+            $this->database = new PDO('mysql:host=localhost;dbname=blog;charset=utf8', 'root', 'root');
+        }
+    }
+}
