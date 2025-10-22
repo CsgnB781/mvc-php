@@ -1,41 +1,67 @@
 <?php
-
-function getComments(string $post)
+class Post
 {
-    $database = commentDbConnect();
-    $statement = $database->prepare(
-        "SELECT id, author, comment, DATE_FORMAT(comment_date, '%d/%m/%Y à %Hh%imin%ss') AS french_creation_date FROM comments WHERE post_id = ? ORDER BY comment_date DESC"
+    public $identifier;
+    public $title;
+    public $frenchCreationDate;
+    public $content;
+}
+
+class PostRepository
+ {
+ public $database = null;
+ }
+
+function getPosts(PostRepository $repository): array
+{
+    dbConnect($repository);
+    $rows = $repository->database->query(
+        "SELECT id, title, content,
+               DATE_FORMAT(creation_date, '%d/%m/%Y à %Hh%imin%ss') AS french_creation_date
+         FROM posts
+         ORDER BY creation_date DESC"
     );
-    $statement->execute([$post]);
 
-    $comments = [];
-    while (($row = $statement->fetch())) {
-        $comment = [
-            'author' => $row['author'],
-            'french_creation_date' => $row['french_creation_date'],
-            'comment' => $row['comment'],
-        ];
-
-        $comments[] = $comment;
+    $posts = [];
+    while ($row = $rows->fetch()) {
+        $p = new Post();
+        $p->identifier = $row['id'];
+        $p->title = $row['title'];
+        $p->frenchCreationDate = $row['french_creation_date'];
+        $p->content = $row['content'];
+        $posts[] = $p;
     }
-
-    return $comments;
+    return $posts;
 }
 
-function createComment(string $post, string $author, string $comment)
+
+
+function getPost(PostRepository $repository, string $identifier): Post
 {
-    $database = commentDbConnect();
-    $statement = $database->prepare(
-        'INSERT INTO comments(post_id, author, comment, comment_date) VALUES(?, ?, ?, NOW())'
+    dbConnect($repository);
+    $statement = $repository->database->prepare(
+        "SELECT id, title, content,
+               DATE_FORMAT(creation_date, '%d/%m/%Y à %Hh%imin%ss') AS french_creation_date
+         FROM posts
+         WHERE id = ?"
     );
-    $affectedLines = $statement->execute([$post, $author, $comment]);
+    $statement->execute([$identifier]);
+    $row = $statement->fetch();
 
-    return ($affectedLines > 0);
+    $post = new Post();
+    $post->identifier = $row['id'];
+    $post->title = $row['title'];
+    $post->frenchCreationDate = $row['french_creation_date'];
+    $post->content = $row['content'];
+    return $post;
 }
 
-function commentDbConnect()
-{
-    $database = new PDO('mysql:host=localhost;dbname=blog;charset=utf8', 'blog', 'password');
 
-    return $database;
-}
+// Fonction de connexion à la base de données
+function dbConnect(PostRepository $repository)
+ {
+    if ($repository->database === null) {
+        $repository->database = new PDO('mysql:host=localhost;
+        dbname=blog;charset=utf8', 'root', 'root');
+        }
+ }
